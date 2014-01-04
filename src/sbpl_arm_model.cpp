@@ -298,8 +298,8 @@ bool SBPLArmModel::initKDLChain(const std::string &fKDL)
   jnt_pos_in_.resize(chain_.getNrOfJoints());
   jnt_pos_out_.resize(chain_.getNrOfJoints());
 
-  ROS_INFO("[arm] The FK chain has %d segments with %d joints.", chain_.getNrOfSegments(), chain_.getNrOfJoints());
-  ROS_INFO("[arm] root: %s tip: %s.", chain_root_name_.c_str(), chain_tip_name_.c_str());
+  //ROS_INFO("[arm] The FK chain has %d segments with %d joints.", chain_.getNrOfSegments(), chain_.getNrOfJoints());
+  //ROS_INFO("[arm] root: %s tip: %s.", chain_root_name_.c_str(), chain_tip_name_.c_str());
   
   // initialize PR2ArmIKSolver
   robot_model_.initString(fKDL);
@@ -309,6 +309,8 @@ bool SBPLArmModel::initKDLChain(const std::string &fKDL)
   {
     ROS_ERROR("[arm] Error: the IK solver is NOT active.");
     return false;
+  } else {
+    ROS_INFO("ik solver is up!");
   }
 
   kinematics_msgs::KinematicSolverInfo ik_info;

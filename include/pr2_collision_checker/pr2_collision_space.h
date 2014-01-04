@@ -53,6 +53,7 @@
 #include <sbpl_geometry_utils/SphereEncloser.h>
 #include <arm_navigation_msgs/CollisionObject.h>
 #include <pviz/pviz.h>
+#include <boost/shared_ptr.hpp>
 
 using namespace std;
 
@@ -128,7 +129,7 @@ class PR2CollisionSpace
 {
   public:
     /* constructors */
-    PR2CollisionSpace(sbpl_arm_planner::SBPLArmModel* right_arm, sbpl_arm_planner::SBPLArmModel* left_arm, sbpl_arm_planner::OccupancyGrid* grid);
+    PR2CollisionSpace(boost::shared_ptr<sbpl_arm_planner::SBPLArmModel> right_arm, boost::shared_ptr<sbpl_arm_planner::SBPLArmModel> left_arm, boost::shared_ptr<sbpl_arm_planner::OccupancyGrid> grid);
     
     PR2CollisionSpace(std::string rarm_file, std::string larm_file, std::vector<double> &dims, std::vector<double> &origin, double resolution, std::string frame_id);
 
@@ -260,10 +261,10 @@ class PR2CollisionSpace
   private:
 
     /** @brief arm model used by planner */
-    std::vector<sbpl_arm_planner::SBPLArmModel*> arm_;
+    std::vector<boost::shared_ptr<sbpl_arm_planner::SBPLArmModel> > arm_;
 
     /** @brief occupancy grid used by planner */
-    sbpl_arm_planner::OccupancyGrid* grid_;
+    boost::shared_ptr<sbpl_arm_planner::OccupancyGrid> grid_;
 
     /** Just for TAR project **/
     PViz pviz_;

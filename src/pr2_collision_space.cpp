@@ -35,6 +35,7 @@
 
 #define SMALL_NUM  0.00000001     // to avoid division overflow
 
+using namespace boost;
 namespace pr2_collision_checker
 {
 
@@ -43,7 +44,7 @@ double distance(const int a[], const int b[])
   return sqrt(((a[0]-b[0]))*(a[0]-b[0]) + ((a[1]-b[1]))*(a[1]-b[1]) + ((a[2]-b[2]))*(a[2]-b[2]));
 }
 
-PR2CollisionSpace::PR2CollisionSpace(sbpl_arm_planner::SBPLArmModel* right_arm, sbpl_arm_planner::SBPLArmModel* left_arm, sbpl_arm_planner::OccupancyGrid* grid) : grid_(grid)
+PR2CollisionSpace::PR2CollisionSpace(shared_ptr<sbpl_arm_planner::SBPLArmModel> right_arm, shared_ptr<sbpl_arm_planner::SBPLArmModel> left_arm, shared_ptr<sbpl_arm_planner::OccupancyGrid> grid) : grid_(grid)
 {
   visualize_result_ = false;
   arm_.resize(2);
@@ -76,8 +77,8 @@ PR2CollisionSpace::PR2CollisionSpace(std::string rarm_filename, std::string larm
   if((larm_fp=fopen(larm_filename.c_str(),"r")) == NULL)
     ROS_ERROR("[cc] Failed to open left arm description file.");
   
-  arm_[0] = new sbpl_arm_planner::SBPLArmModel(rarm_fp);
-  arm_[1] = new sbpl_arm_planner::SBPLArmModel(larm_fp);
+  arm_[0] = make_shared<sbpl_arm_planner::SBPLArmModel>(rarm_fp);
+  arm_[1] = make_shared<sbpl_arm_planner::SBPLArmModel>(larm_fp);
   arm_[0]->setResolution(resolution);
   arm_[1]->setResolution(resolution);
   arm_[0]->setDebugLogName("rarm");
@@ -92,7 +93,7 @@ PR2CollisionSpace::PR2CollisionSpace(std::string rarm_filename, std::string larm
   fclose(larm_fp);
 
   // create the occupancy grid
-  grid_ = new sbpl_arm_planner::OccupancyGrid(dims[0], dims[1], dims[2], resolution, origin[0], origin[1], origin[2]);
+  grid_ = make_shared<sbpl_arm_planner::OccupancyGrid>(dims[0], dims[1], dims[2], resolution, origin[0], origin[1], origin[2]);
   grid_->setReferenceFrame(frame_id);
 
   delete_objects_ = true;
@@ -108,13 +109,6 @@ PR2CollisionSpace::PR2CollisionSpace(std::string rarm_filename, std::string larm
 
 PR2CollisionSpace::~PR2CollisionSpace()
 {
-  if(delete_objects_)
-  {
-    ROS_ERROR("[cc] Deleting objects!");
-    delete arm_[0];
-    delete arm_[1];
-    delete grid_;
-  }
   delete fk_solver_;
 }
 
@@ -585,18 +579,20 @@ bool PR2CollisionSpace::checkCollisionBetweenArms(const std::vector<double> &lan
       {
         ROS_DEBUG_NAMED(cspace_log_,"Right %d: %d %d %d -> %d %d %d  dist: %0.3f", int(i), rjnts[i][0], rjnts[i][1], rjnts[i][2], rjnts[i+1][0],rjnts[i+1][1],rjnts[i+1][2], d);
         ROS_DEBUG_NAMED(cspace_log_,"Left  %d: %d %d %d -> %d %d %d  dist: %0.3f", int(j), ljnts[j][0], ljnts[j][1], ljnts[j][2], ljnts[j+1][0],ljnts[j+1][1],ljnts[j+1][2], d);
+        ROS_INFO("Right %d: %d %d %d -> %d %d %d  dist: %0.3f", int(i), rjnts[i][0], rjnts[i][1], rjnts[i][2], rjnts[i+1][0],rjnts[i+1][1],rjnts[i+1][2], d);
+        ROS_INFO("Left  %d: %d %d %d -> %d %d %d  dist: %0.3f", int(j), ljnts[j][0], ljnts[j][1], ljnts[j][2], ljnts[j+1][0],ljnts[j+1][1],ljnts[j+1][2], d);
       }
       if(d <= max(arm_[0]->getLinkRadius(i), arm_[1]->getLinkRadius(j)))
       {
         if(verbose)
-          ROS_DEBUG_NAMED(cspace_log_,"  Right arm link %d is in collision with left arm link %d. (dist: %0.3fm)", int(i), int(j), d);
+          ROS_INFO("  Right arm link %d is in collision with left arm link %d. (dist: %0.3fm)", int(i), int(j), d);
         dist = d;
         return false;
       }
       else
       {
         if(verbose)
-          ROS_DEBUG_NAMED(cspace_log_, "Distance between right link %d and left link %d is %0.3fm", int(i), int(j), d);
+          ROS_INFO("Distance between right link %d and left link %d is %0.3fm", int(i), int(j), d);
       }
 
       if(d < d_min)
@@ -688,7 +684,7 @@ void PR2CollisionSpace::addCollisionObject(const arm_navigation_msgs::CollisionO
       //sbpl::Voxelizer::voxelizeMesh(object.shapes[i].vertices, object.shapes[i].triangles/*, object.poses[i]*/, 0.02, voxels, false);
      
       ros::Time t_start_voxel = ros::Time::now();
-      sbpl::VoxelizeMesh(object.shapes[i].vertices, object.shapes[i].triangles, 0.02, voxels);
+      //sbpl::VoxelizeMesh(object.shapes[i].vertices, object.shapes[i].triangles, 0.02, voxels);
       ros::Time t_end_voxel = ros::Time::now();
       ROS_WARN("[cc] Voxelizing the mesh into %d voxels took %0.3f seconds .(%s)", int(voxels.size()), ros::Duration(t_end_voxel-t_start_voxel).toSec(), object.id.c_str());
 
@@ -962,7 +958,7 @@ bool PR2CollisionSpace::getSphereGroups()
       if(full_body_chain_.getSegment(k).getName().compare(g.root_frame) == 0)
       {
         g.kdl_segment = k + 1;
-        ROS_INFO("[cc] %s group is rooted at %s with kdl segment #%d", g.name.c_str(), g.root_frame.c_str(), int(k));
+        ROS_DEBUG("[cc] %s group is rooted at %s with kdl segment #%d", g.name.c_str(), g.root_frame.c_str(), int(k));
         break;
       }
     }
@@ -1031,7 +1027,7 @@ bool PR2CollisionSpace::getSphereGroups()
   all_g_.push_back(lforearm_g_);
   all_g_.push_back(head_g_);
   
-  ROS_INFO("Successfully parsed collision groups.");
+  ROS_DEBUG("Successfully parsed collision groups.");
   return true;
 }
 
@@ -1494,32 +1490,32 @@ bool PR2CollisionSpace::checkCollisionArmsToBody(std::vector<double> &langles, s
  
   if(!checkCollisionArmsToGroup(base_g_, dist))
   {
-    ROS_INFO("[cc] base - arms collision. (dist: %0.3fm)",dist);
+    //ROS_INFO("[cc] base - arms collision. (dist: %0.3fm)",dist);
     return false;
   }
   if(!checkCollisionArmsToGroup(turrets_g_, dist))
   {
-    ROS_INFO("[cc] turrets - arms collision. (dist: %0.3fm)",dist);
+    //ROS_INFO("[cc] turrets - arms collision. (dist: %0.3fm)",dist);
     return false;
   }
   if(!checkCollisionArmsToGroup(tilt_laser_g_, dist))
   {
-    ROS_INFO("[cc] tilt_laser - arms collision. (dist: %0.3fm)",dist);
+    //ROS_INFO("[cc] tilt_laser - arms collision. (dist: %0.3fm)",dist);
     return false;
   }
   if(!checkCollisionArmsToGroup(torso_upper_g_, dist))
   {
-    ROS_INFO("[cc] torso_upper - arms collision. (dist: %0.3fm)",dist);
+    //ROS_INFO("[cc] torso_upper - arms collision. (dist: %0.3fm)",dist);
     return false;
   }
   if(!checkCollisionArmsToGroup(torso_lower_g_, dist))
   {
-    ROS_INFO("[cc] torso_lower - arms collision. (dist: %0.3fm)",dist);
+    //ROS_INFO("[cc] torso_lower - arms collision. (dist: %0.3fm)",dist);
     return false;
   }
   if(!checkCollisionArmsToGroup(head_g_, dist))
   {
-    ROS_INFO("[cc] head - arms collision. (dist: %0.3fm)",dist);
+    //ROS_INFO("[cc] head - arms collision. (dist: %0.3fm)",dist);
     return false;
   }
 
@@ -1728,12 +1724,14 @@ bool PR2CollisionSpace::checkBaseMotion(std::vector<double> &langles, std::vecto
 bool PR2CollisionSpace::checkArmsMotion(std::vector<double> &langles, std::vector<double> &rangles, BodyPose &pose, bool verbose, double &dist, int &debug_code)
 {
   // arms-world, arms-arms
-  if(!checkCollisionArms(langles, rangles, pose, verbose, dist, debug_code))
+  if(!checkCollisionArms(langles, rangles, pose, verbose, dist, debug_code)){
     return false;
+  }
 
   // arms-body
-  if(!checkCollisionArmsToBody(langles, rangles, pose, dist))
+  if(!checkCollisionArmsToBody(langles, rangles, pose, dist)){
     return false;
+  }
 
   return true;
 }
