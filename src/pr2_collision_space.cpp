@@ -911,7 +911,8 @@ bool PR2CollisionSpace::getSphereGroups()
   Group g;
   std::string groups_name = "groups";
 
-  ros::NodeHandle ph(/*"~"*/ "/dviz_core_node");
+  //ros::NodeHandle ph(/*"~"*/ "/dviz_core_node");
+  ros::NodeHandle ph("~");
   ph.param<std::string>("full_body_kinematics_chain/root_frame", full_body_chain_root_name_, "base_footprint");
   ph.param<std::string>("full_body_kinematics_chain/tip_frame", full_body_chain_tip_name_, "head_tilt_link");
 
